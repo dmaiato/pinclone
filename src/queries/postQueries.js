@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
-const POSTS_PER_PAGE = 2;
+const POSTS_PER_PAGE = 10;
 
 export const fetchPosts = async (page, orderByQuery, userId) => {
     const skip = (page - 1) * POSTS_PER_PAGE;
