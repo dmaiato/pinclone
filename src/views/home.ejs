@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MyPins</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+
+    <nav class="flex items-center justify-between px-6 py-4 bg-white shadow sticky top-0 z-10">
+        <a href="/" class="text-2xl font-bold text-red-500">MyPins</a>
+        <div class="text-sm">
+            <a href="/?orderBy=createdAt_desc" class="<%= orderBy === 'createdAt_desc' ? 'font-bold text-red-500' : 'text-gray-600' %> hover:text-red-500 ml-2">Mais Recentes</a>
+            <a href="/?orderBy=likes_desc" class="<%= orderBy === 'likes_desc' ? 'font-bold text-red-500' : 'text-gray-600' %> hover:text-red-500 ml-2">Mais Curtidos</a>
+        </div>
+        <div class="space-x-4">
+            <% if (user) { %>
+                <a href="/publish" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition">Publicar</a>
+                <a href="/logout" class="text-gray-700 hover:text-red-500">Sair</a>
+            <% } else { %>
+                <a href="/login" class="text-gray-700 hover:text-red-500">Login</a>
+                <a href="/signup" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition">Sign Up</a>
+            <% } %>
+        </div>
+    </nav>
+
+    <main class="p-6">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Explorar Pins</h1>
+        
+        <% if (posts.length > 0) { %>
+            <div id="posts-container" class="grid grid-cols-2 gap-4">
+                <%- include('partials/_posts.ejs', { posts: posts, user: user }) %>
+            </div>
+        <% } else { %>
+            <p class="text-center text-gray-500">Nenhum pin encontrado. Seja o primeiro a publicar!</p>
+        <% } %>
+
+        <div id="scroll-observer" class="h-10"></div>
+
+        <div id="loading-indicator" class="text-center p-6" style="display: none;">
+            <p class="text-gray-500">Carregando mais pins...</p>
+        </div>
+    </main>
+
+    <% if (posts.length > 0) { %>
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const postsContainer = document.getElementById('posts-container');
+                const scrollObserver = document.getElementById('scroll-observer');
+                const loadingIndicator = document.getElementById('loading-indicator');
+
+                let currentPage = 1;
+                let isLoading = false;
+                let hasMore = true;
+
+                const loadMorePosts = async () => {
+                    if (isLoading || !hasMore) return;
+
+                    isLoading = true;
+                    loadingIndicator.style.display = 'block';
+                    currentPage++;
+
+                    try {
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const orderBy = urlParams.get('orderBy') || 'createdAt_desc';
+
+                        const response = await fetch(`/api/posts?page=${currentPage}&orderBy=${orderBy}`);
+                        if (!response.ok) {
+                            throw new Error('A resposta da rede não foi OK');
+                        }
+                        const data = await response.json();
+
+                        if (data.html) {
+                            postsContainer.insertAdjacentHTML('beforeend', data.html);
+                        }
+
+                        hasMore = data.hasMore;
+                        if (!hasMore) {
+                            observer.disconnect();
+                            loadingIndicator.innerHTML = '<p class="text-gray-500">Não há mais pins para mostrar.</p>';
+                        }
+
+                    } catch (error) {
+                        console.error('Falha ao buscar mais posts:', error);
+                        loadingIndicator.innerHTML = '<p class="text-red-500">Falha ao carregar posts.</p>';
+                    } finally {
+                        isLoading = false;
+                        if (hasMore) {
+                            loadingIndicator.style.display = 'none';
+                        }
+                    }
+                };
+
+                const observer = new IntersectionObserver((entries) => {
+                    if (entries[0].isIntersecting) {
+                        loadMorePosts();
+                    }
+                }, { threshold: 0.1 });
+
+                if (scrollObserver) {
+                    observer.observe(scrollObserver);
+                }
+            });
+        </script>
+    <% } %>
+</body>
+</html>
